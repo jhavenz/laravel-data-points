@@ -2,21 +2,33 @@
 
 namespace DataPoints\LaravelDataPoints\Generators;
 
+use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
+use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
+use DataPoints\LaravelDataPoints\DTOs\Field;
+use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
+use DataPoints\LaravelDataPoints\Enums\RelationType;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpNamespace;
 use Nette\PhpGenerator\PsrPrinter;
 
-readonly class MigrationGenerator
+readonly class MigrationGenerator implements Generator
 {
-    public function __construct(
-        private DataPoint $dataPoint
-    ) {}
+    public string $type {
+        get => 'migration';
+    }
 
-    public function generate(): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
     {
-        $className = 'Create' . Str::studly($this->dataPoint->tableName) . 'Table';
+        foreach ($dataPoints as $dataPoint) {
+            $this->generateMigration($dataPoint);
+        }
+    }
+
+    private function generateMigration(DataPoint $dataPoint): void
+    {
+        $className = 'Create' . Str::studly($dataPoint->tableName) . 'Table';
 
         $namespace = new PhpNamespace('Database\\Migrations');
         $namespace->addUse('Illuminate\\Database\\Migrations\\Migration');
@@ -27,14 +39,14 @@ readonly class MigrationGenerator
             ->addClass($className)
             ->setExtends('Illuminate\\Database\\Migrations\\Migration');
 
-        $this->addUpMethod($class);
-        $this->addDownMethod($class);
+        $this->addUpMethod($class, $dataPoint);
+        $this->addDownMethod($class, $dataPoint);
 
         $printer = new PsrPrinter;
         $content = "<?php\n\n" . $printer->printNamespace($namespace);
 
         $filename = date('Y_m_d_His') . '_create_' .
-            $this->dataPoint->tableName . '_table.php';
+            $dataPoint->tableName . '_table.php';
 
         $path = database_path('migrations/' . $filename);
 
@@ -42,7 +54,7 @@ readonly class MigrationGenerator
         file_put_contents($path, $content);
     }
 
-    private function addUpMethod(ClassType $class): void
+    private function addUpMethod(ClassType $class, DataPoint $dataPoint): void
     {
         $method = $class
             ->addMethod('up')
@@ -50,24 +62,24 @@ readonly class MigrationGenerator
             ->setReturnType('void')
             ->addComment('Run the migrations.');
 
-        $body = "Schema::create('{$this->dataPoint->tableName}', function (Blueprint \$table) {\n";
+        $body = "Schema::create('{$dataPoint->tableName}', function (Blueprint \$table) {\n";
         $body .= "    \$table->id();\n";
 
-        foreach ($this->dataPoint as $name => $field) {
-            $body .= $this->generateFieldDefinition($name, $field);
+        foreach ($dataPoint->fields as $field) {
+            $body .= $this->generateFieldDefinition($field);
         }
 
         // Add foreign keys for relationships
-        foreach ($this->dataPoint as $relationship) {
-            if ($relationship['type'] === 'belongsTo') {
-                $foreignKey = Str::snake($relationship['related']) . '_id';
+        foreach ($dataPoint->relationships as $relationship) {
+            if ($relationship->type === RelationType::BELONGS_TO) {
+                $foreignKey = Str::snake($relationship->related) . '_id';
                 $body .= "    \$table->foreignId('$foreignKey')\n";
                 $body .= "        ->constrained()\n";
                 $body .= "        ->cascadeOnDelete();\n";
             }
         }
 
-        if ($this->dataPoint->hasTimestamps) {
+        if ($dataPoint->hasTimestamps) {
             $body .= "    \$table->timestamps();\n";
         }
 
@@ -76,42 +88,42 @@ readonly class MigrationGenerator
         $method->setBody($body);
     }
 
-    private function addDownMethod(ClassType $class): void
+    private function addDownMethod(ClassType $class, DataPoint $dataPoint): void
     {
         $method = $class->addMethod('down')
             ->setPublic()
             ->setReturnType('void')
             ->addComment('Reverse the migrations.');
 
-        $method->setBody("Schema::dropIfExists('{$this->dataPoint->tableName}');");
+        $method->setBody("Schema::dropIfExists('{$dataPoint->tableName}');");
     }
 
-    private function generateFieldDefinition(string $name, array $field): string
+    private function generateFieldDefinition(Field $field): string
     {
-        return match ($field['type']) {
-            'string' => "    \$table->string('$name'" . $this->getFieldOptions($field) . ");\n",
-            'text' => "    \$table->text('$name'" . $this->getFieldOptions($field) . ");\n",
-            'integer' => "    \$table->integer('$name'" . $this->getFieldOptions($field) . ");\n",
-            'bigInteger' => "    \$table->bigInteger('$name'" . $this->getFieldOptions($field) . ");\n",
-            'boolean' => "    \$table->boolean('$name'" . $this->getFieldOptions($field) . ");\n",
-            'date' => "    \$table->date('$name'" . $this->getFieldOptions($field) . ");\n",
-            'datetime' => "    \$table->datetime('$name'" . $this->getFieldOptions($field) . ");\n",
-            'timestamp' => "    \$table->timestamp('$name'" . $this->getFieldOptions($field) . ");\n",
-            'decimal' => "    \$table->decimal('$name', 8, 2" . $this->getFieldOptions($field) . ");\n",
-            'json' => "    \$table->json('$name'" . $this->getFieldOptions($field) . ");\n",
-            default => "    \$table->{$field['type']}('$name'" . $this->getFieldOptions($field) . ");\n",
+        return match ($field->type) {
+            'string' => "    \$table->string('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'text' => "    \$table->text('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'integer' => "    \$table->integer('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'bigInteger' => "    \$table->bigInteger('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'boolean' => "    \$table->boolean('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'date' => "    \$table->date('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'datetime' => "    \$table->datetime('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'timestamp' => "    \$table->timestamp('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            'decimal' => "    \$table->decimal('{$field->name}', 8, 2" . $this->getFieldOptions($field->options) . ");\n",
+            'json' => "    \$table->json('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
+            default => "    \$table->{$field->type}('{$field->name}'" . $this->getFieldOptions($field->options) . ");\n",
         };
     }
 
-    private function getFieldOptions(array $field): string
+    private function getFieldOptions(array $options): string
     {
-        if (empty($field['options'])) {
+        if (empty($options)) {
             return '';
         }
 
         return ', ' . implode(', ', array_map(
             fn($value) => is_string($value) ? "'$value'" : $value,
-            $field['options']
+            $options
         ));
     }
 

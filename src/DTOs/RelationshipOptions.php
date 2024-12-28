@@ -8,6 +8,7 @@ readonly class RelationshipOptions
         public ?string $foreignKey = null,
         public ?string $localKey = null,
         public ?string $table = null,
+        public ?string $morphName = null,
         public bool $withTimestamps = false
     ) {}
 
@@ -17,6 +18,7 @@ readonly class RelationshipOptions
             foreignKey: $options['foreignKey'] ?? null,
             localKey: $options['localKey'] ?? null,
             table: $options['table'] ?? null,
+            morphName: $options['morphName'] ?? null,
             withTimestamps: $options['withTimestamps'] ?? false
         );
     }
@@ -27,6 +29,7 @@ readonly class RelationshipOptions
             'foreignKey' => $this->foreignKey,
             'localKey' => $this->localKey,
             'table' => $this->table,
+            'morphName' => $this->morphName,
             'withTimestamps' => $this->withTimestamps,
         ], fn($value) => $value !== null && $value !== false);
     }

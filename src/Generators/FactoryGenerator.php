@@ -2,13 +2,18 @@
 
 namespace DataPoints\LaravelDataPoints\Generators;
 
+use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
+use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
+use DataPoints\LaravelDataPoints\DTOs\Field;
+use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
+use DataPoints\LaravelDataPoints\Enums\RelationType;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
-use Nette\PhpGenerator\PhpNamespace;
+use Nette\PhpGenerator\PhpFile;
 use Nette\PhpGenerator\PsrPrinter;
 
-readonly class FactoryGenerator
+class FactoryGenerator implements Generator
 {
     private const array TYPE_MAP = [
         'string' => 'fake()->sentence',
@@ -32,27 +37,37 @@ readonly class FactoryGenerator
         'json' => '[]',
     ];
 
-    public function __construct(
-        private DataPoint $dataPoint
-    ) {}
+    public string $type {
+        get => 'factory';
+    }
 
-    public function generate(): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
     {
-        $className = $this->dataPoint->modelName . 'Factory';
+        foreach ($dataPoints as $dataPoint) {
+            $this->generateFactory($dataPoint, $options);
+        }
+    }
 
-        $namespace = new PhpNamespace('Database\\Factories');
+    private function generateFactory(DataPoint $dataPoint, TemplateOptions $options): void
+    {
+        $className = $dataPoint->name . 'Factory';
+
+        $file = new PhpFile;
+        $file->setStrictTypes();
+
+        $namespace = $file->addNamespace('Database\\Factories');
         $namespace->addUse('Illuminate\\Database\\Eloquent\\Factories\\Factory');
         $namespace->addUse('Illuminate\\Support\\Str');
-        $namespace->addUse('App\\Models\\' . $this->dataPoint->modelName);
+        $namespace->addUse($this->getNamespace($dataPoint, $options) . '\\' . $dataPoint->name);
 
         $class = $namespace->addClass($className)
             ->setExtends('Illuminate\\Database\\Eloquent\\Factories\\Factory');
 
-        $this->addModelMethod($class);
-        $this->addDefinitionMethod($class);
+        $this->addModelMethod($class, $dataPoint, $options);
+        $this->addDefinitionMethod($class, $dataPoint);
 
         $printer = new PsrPrinter;
-        $content = "<?php\n\n" . $printer->printNamespace($namespace);
+        $content = (string) $file;
 
         $path = database_path('factories/' . $className . '.php');
 
@@ -60,7 +75,7 @@ readonly class FactoryGenerator
         file_put_contents($path, $content);
     }
 
-    private function addModelMethod(ClassType $class): void
+    private function addModelMethod(ClassType $class, DataPoint $dataPoint, TemplateOptions $options): void
     {
         $method = $class->addMethod('model')
             ->setPublic()
@@ -68,10 +83,10 @@ readonly class FactoryGenerator
             ->setReturnType('string')
             ->addComment('The name of the factory\'s corresponding model.');
 
-        $method->setBody('return \\App\\Models\\' . $this->dataPoint->modelName . '::class;');
+        $method->setBody('return \\' . $this->getNamespace($dataPoint, $options) . '\\' . $dataPoint->name . '::class;');
     }
 
-    private function addDefinitionMethod(ClassType $class): void
+    private function addDefinitionMethod(ClassType $class, DataPoint $dataPoint): void
     {
         $method = $class
             ->addMethod('definition')
@@ -81,28 +96,28 @@ readonly class FactoryGenerator
             ->addComment('@return array<string, mixed>');
 
         $definitions = [
-            ...$this->getFieldDefinitions(),
-            ...$this->getRelationshipDefinitions()
+            ...$this->getFieldDefinitions($dataPoint),
+            ...$this->getRelationshipDefinitions($dataPoint)
         ];
 
         $method->setBody('return [' . "\n    " . implode(",\n    ", $definitions) . "\n];");
     }
 
-    private function getFieldDefinitions(): array
+    private function getFieldDefinitions(DataPoint $dataPoint): array
     {
-        return collect($this->dataPoint)
-            ->map(fn($field, $name) => $this->getFakerDefinition($name, $field['type']))
+        return $dataPoint->fields
+            ->map(fn(Field $field) => $this->getFakerDefinition($field->name, $field->type))
             ->filter()
             ->all();
     }
 
-    private function getRelationshipDefinitions(): array
+    private function getRelationshipDefinitions(DataPoint $dataPoint): array
     {
-        return collect($this->dataPoint)
-            ->filter(fn($relationship) => $relationship['type'] === 'belongsTo')
-            ->map(function($relationship) {
-                $relatedModel = 'App\\Models\\' . Str::studly($relationship['related']);
-                $foreignKey = Str::snake($relationship['related']) . '_id';
+        return $dataPoint->relationships
+            ->filter(fn($relationship) => $relationship->type === RelationType::BELONGS_TO)
+            ->map(function($relationship) use ($dataPoint) {
+                $relatedModel = $this->getNamespace($dataPoint) . '\\' . $relationship->related;
+                $foreignKey = $relationship->options->foreignKey ?? Str::snake($relationship->related) . '_id';
                 return "'$foreignKey' => \\$relatedModel::factory()";
             })
             ->all();
@@ -113,6 +128,11 @@ readonly class FactoryGenerator
         $faker = self::TYPE_MAP[$type] ?? null;
 
         return $faker ? "'$name' => $faker" : null;
+    }
+
+    private function getNamespace(DataPoint $dataPoint, ?TemplateOptions $options = null): string
+    {
+        return $options?->namespace ?? 'App\\Models';
     }
 
     private function ensureDirectoryExists(string $directory): void
