@@ -2,4 +2,5 @@
 
 use DataPoints\LaravelDataPoints\Tests\TestCase;
 
-uses(TestCase::class)->in(__DIR__);
+uses(TestCase::class)
+    ->in('Architecture', 'Feature', 'Unit');

@@ -5,8 +5,10 @@ namespace DataPoints\LaravelDataPoints\Generators;
 use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpFile;
@@ -17,14 +19,17 @@ class ModelGenerator implements Generator
         get => 'model';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $result = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateModel($dataPoint, $options);
+            $result[] = $this->generateModel($dataPoint, $options);
         }
+
+        return $result;
     }
 
-    private function generateModel(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateModel(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $file = new PhpFile;
         $file->setStrictTypes();
@@ -49,12 +54,10 @@ class ModelGenerator implements Generator
         $this->addCustomAttributes($class, $dataPoint);
         $this->addRelationships($class, $dataPoint);
 
-        // Save the file
-        $path = $this->getFilePath($dataPoint, $options);
-        if (!is_dir(dirname($path))) {
-            mkdir(dirname($path), 0777, true);
-        }
-        file_put_contents($path, (string) $file);
+        return new GeneratedArtifact(
+            $this->getFilePath($dataPoint, $options),
+            (string) $file
+        );
     }
 
     private function getRelationshipClass(RelationType $type): string
@@ -84,7 +87,8 @@ class ModelGenerator implements Generator
     private function getFilePath(DataPoint $dataPoint, TemplateOptions $options): string
     {
         $namespace = str_replace('\\', '/', $this->getNamespace($dataPoint, $options));
-        return base_path($namespace . '/' . $this->getClassName($dataPoint) . '.php');
+        $basePath = $options->outputPath ?? base_path();
+        return $basePath . '/' . $namespace . '/' . $this->getClassName($dataPoint) . '.php';
     }
 
     private function addTraitsAndInterfaces(ClassType $class, DataPoint $dataPoint): void

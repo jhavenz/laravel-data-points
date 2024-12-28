@@ -3,7 +3,7 @@
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
-use DataPoints\LaravelDataPoints\DTOs\RelationshipOptions;
+use DataPoints\LaravelDataPoints\DTOs\Relationship;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\ControllerType;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
@@ -11,8 +11,8 @@ use DataPoints\LaravelDataPoints\Generators\ControllerGenerator;
 
 beforeEach(function () {
     $this->generator = new ControllerGenerator();
-    $this->tempPath = sys_get_temp_dir() . '/laravel-data-points-test';
-    
+    $this->tempPath = sys_get_temp_dir().'/laravel-data-points-test';
+
     if (!is_dir($this->tempPath)) {
         mkdir($this->tempPath, 0755, true);
     }
@@ -27,36 +27,35 @@ test('it generates api controller', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
-            new Field(name: 'content', type: 'text'),
+            Field::from('title', 'string'),
+            Field::from('content', 'text'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
+        controllerType: ControllerType::API_RESOURCE,
         namespace: 'App\\Models',
-        outputPath: $this->tempPath,
-        controllerType: ControllerType::API
+        outputPath: $this->tempPath
     );
 
     // Act
     $this->generator->generate($collection, $options);
 
     // Assert
-    $controllerPath = $this->tempPath . '/PostController.php';
+    $controllerPath = $this->tempPath.'/PostController.php';
     expect(file_exists($controllerPath))->toBeTrue();
-    
+
     $content = file_get_contents($controllerPath);
-    expect($content)->toContain('namespace App\\Http\\Controllers;');
-    expect($content)->toContain('use App\\Http\\Resources\\PostResource;');
-    expect($content)->toContain('class PostController extends Controller');
-    expect($content)->toContain('public function index()');
-    expect($content)->toContain('public function store(Request $request)');
-    expect($content)->toContain('public function show(Post $post)');
-    expect($content)->toContain('public function update(Request $request, Post $post)');
-    expect($content)->toContain('public function destroy(Post $post)');
+    expect($content)->toContain('namespace App\\Http\\Controllers;')
+        ->and($content)->toContain('use App\\Http\\Resources\\PostResource;')
+        ->and($content)->toContain('class PostController extends Controller')
+        ->and($content)->toContain('public function index()')
+        ->and($content)->toContain('public function store(Request $request)')
+        ->and($content)->toContain('public function show(Post $post)')
+        ->and($content)->toContain('public function update(Request $request, Post $post)')
+        ->and($content)->toContain('public function destroy(Post $post)');
 });
 
 test('it generates web controller', function () {
@@ -64,60 +63,30 @@ test('it generates web controller', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
+        controllerType: ControllerType::RESOURCE,
         namespace: 'App\\Models',
-        outputPath: $this->tempPath,
-        controllerType: ControllerType::WEB
+        outputPath: $this->tempPath
     );
 
     // Act
     $this->generator->generate($collection, $options);
 
     // Assert
-    $controllerPath = $this->tempPath . '/PostController.php';
+    $controllerPath = $this->tempPath.'/PostController.php';
     expect(file_exists($controllerPath))->toBeTrue();
-    
+
     $content = file_get_contents($controllerPath);
-    expect($content)->toContain('return view(\'post.index\'');
-    expect($content)->toContain('return view(\'post.create\'');
-    expect($content)->toContain('return view(\'post.edit\'');
-    expect($content)->toContain('return redirect()->route(\'post.index\'');
-});
-
-test('it generates invokable controller', function () {
-    // Arrange
-    $dataPoint = new DataPoint(
-        name: 'Post',
-        fields: collect([
-            new Field(name: 'title', type: 'string'),
-        ]),
-        relationships: collect([]),
-        hasTimestamps: true
-    );
-
-    $collection = new DataPointCollection(collect([$dataPoint]));
-    $options = new TemplateOptions(
-        namespace: 'App\\Models',
-        outputPath: $this->tempPath,
-        controllerType: ControllerType::INVOKABLE
-    );
-
-    // Act
-    $this->generator->generate($collection, $options);
-
-    // Assert
-    $controllerPath = $this->tempPath . '/PostController.php';
-    expect(file_exists($controllerPath))->toBeTrue();
-    
-    $content = file_get_contents($controllerPath);
-    expect($content)->toContain('public function __invoke(Request $request)');
+    expect($content)->toContain('return view(\'post.index\'')
+        ->and($content)->toContain('return view(\'post.create\'')
+        ->and($content)->toContain('return view(\'post.edit\'')
+        ->and($content)->toContain('return redirect()->route(\'post.index\'');
 });
 
 test('it generates controller with relationships', function () {
@@ -125,35 +94,31 @@ test('it generates controller with relationships', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::BELONGS_TO,
-                related: 'User',
-                options: new RelationshipOptions(
-                    foreignKey: 'user_id',
-                    localKey: 'id'
-                )
-            ),
+            Relationship::from(RelationType::BELONGS_TO, 'User', [
+                'foreignKey' => 'user_id',
+                'localKey' => 'id',
+            ]),
         ]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
+        controllerType: ControllerType::API_RESOURCE,
         namespace: 'App\\Models',
-        outputPath: $this->tempPath,
-        controllerType: ControllerType::API
+        outputPath: $this->tempPath
     );
 
     // Act
     $this->generator->generate($collection, $options);
 
     // Assert
-    $controllerPath = $this->tempPath . '/PostController.php';
+    $controllerPath = $this->tempPath.'/PostController.php';
     expect(file_exists($controllerPath))->toBeTrue();
-    
+
     $content = file_get_contents($controllerPath);
     expect($content)->toContain('use App\\Models\\User;');
 });
@@ -170,7 +135,7 @@ function removeDirectory(string $path): void
                 continue;
             }
 
-            removeDirectory($path . DIRECTORY_SEPARATOR . $item);
+            removeDirectory($path.DIRECTORY_SEPARATOR.$item);
         }
         rmdir($path);
     } else {

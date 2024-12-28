@@ -5,9 +5,10 @@ namespace DataPoints\LaravelDataPoints\Generators;
 use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\ControllerType;
-use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpFile;
 use Nette\PhpGenerator\PsrPrinter;
@@ -18,14 +19,18 @@ class ControllerGenerator implements Generator
         get => 'controller';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    /** @return Collection<GeneratedArtifact> */
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $artifacts = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateController($dataPoint, $options);
+            $artifacts[] = $this->generateController($dataPoint, $options);
         }
+
+        return $artifacts;
     }
 
-    private function generateController(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateController(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $className = $dataPoint->name . 'Controller';
 
@@ -41,10 +46,15 @@ class ControllerGenerator implements Generator
         $this->addConstructor($class, $dataPoint);
         $this->addMethods($class, $dataPoint, $options);
 
+        return new GeneratedArtifact(
+            $this->getFilePath($dataPoint, $options),
+            (string) $file
+        );
+
         $printer = new PsrPrinter;
         $content = (string) $file;
 
-        $path = app_path('Http/Controllers/' . $className . '.php');
+        $path = $this->getFilePath($dataPoint, $options);
 
         $this->ensureDirectoryExists(dirname($path));
         file_put_contents($path, $content);
@@ -297,6 +307,18 @@ class ControllerGenerator implements Generator
     private function getNamespace(DataPoint $dataPoint, ?TemplateOptions $options = null): string
     {
         return $options?->namespace ?? 'App\\Models';
+    }
+
+    private function getFilePath(DataPoint $dataPoint, TemplateOptions $options): string
+    {
+        $namespace = str_replace('\\', '/', $this->getNamespace($dataPoint, $options));
+        $basePath = $options->outputPath ?? base_path();
+        return $basePath . '/' . $namespace . '/' . $this->getClassName($dataPoint) . '.php';
+    }
+
+    private function getClassName(DataPoint $dataPoint): string
+    {
+        return $dataPoint->name . 'Controller';
     }
 
     private function ensureDirectoryExists(string $directory): void

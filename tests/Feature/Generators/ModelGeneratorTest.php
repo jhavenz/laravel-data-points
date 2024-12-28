@@ -3,16 +3,15 @@
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
-use DataPoints\LaravelDataPoints\DTOs\RelationshipOptions;
+use DataPoints\LaravelDataPoints\DTOs\Relationship;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
 use DataPoints\LaravelDataPoints\Generators\ModelGenerator;
-use Tests\TestCase;
 
 beforeEach(function () {
     $this->generator = new ModelGenerator();
-    $this->tempPath = sys_get_temp_dir() . '/laravel-data-points-test';
-    
+    $this->tempPath = sys_get_temp_dir().'/laravel-data-points-test';
+
     if (!is_dir($this->tempPath)) {
         mkdir($this->tempPath, 0755, true);
     }
@@ -27,14 +26,13 @@ test('it generates basic model', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
-            new Field(name: 'content', type: 'text'),
+            Field::from('title', 'string'),
+            Field::from('content', 'text'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -44,9 +42,9 @@ test('it generates basic model', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $modelPath = $this->tempPath . '/Post.php';
+    $modelPath = $this->tempPath.'/Post.php';
     expect(file_exists($modelPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -67,7 +65,7 @@ test('it generates basic model', function () {
             ];
         }
         PHP;
-    
+
     expect(file_get_contents($modelPath))->toBe($expected);
 });
 
@@ -76,30 +74,22 @@ test('it generates model with relationships', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::BELONGS_TO,
-                related: 'User',
-                options: new RelationshipOptions(
-                    foreignKey: 'user_id',
-                    localKey: 'id'
-                )
-            ),
-            new Relationship(
-                type: RelationType::HAS_MANY,
-                related: 'Comment',
-                options: new RelationshipOptions(
-                    foreignKey: 'post_id',
-                    localKey: 'id'
-                )
-            ),
+            Relationship::from(RelationType::BELONGS_TO, 'User', [
+                'foreignKey' => 'user_id',
+                'localKey' => 'id',
+            ]),
+            Relationship::from(RelationType::HAS_MANY, 'Comment', [
+                'foreignKey' => 'post_id',
+                'localKey' => 'id',
+            ]),
         ]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -109,9 +99,9 @@ test('it generates model with relationships', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $modelPath = $this->tempPath . '/Post.php';
+    $modelPath = $this->tempPath.'/Post.php';
     expect(file_exists($modelPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -143,7 +133,7 @@ test('it generates model with relationships', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($modelPath))->toBe($expected);
 });
 
@@ -152,22 +142,18 @@ test('it handles polymorphic relationships', function () {
     $dataPoint = new DataPoint(
         name: 'Comment',
         fields: collect([
-            new Field(name: 'content', type: 'text'),
+            Field::from('content', 'text'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::MORPH_TO,
-                related: 'commentable',
-                options: new RelationshipOptions(
-                    morphType: 'commentable_type',
-                    morphId: 'commentable_id'
-                )
-            ),
+            Relationship::from(RelationType::MORPH_TO, 'commentable', [
+                'morphType' => 'commentable_type',
+                'morphId' => 'commentable_id',
+            ]),
         ]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -177,9 +163,9 @@ test('it handles polymorphic relationships', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $modelPath = $this->tempPath . '/Comment.php';
+    $modelPath = $this->tempPath.'/Comment.php';
     expect(file_exists($modelPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -206,7 +192,7 @@ test('it handles polymorphic relationships', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($modelPath))->toBe($expected);
 });
 
@@ -215,17 +201,18 @@ test('it handles model traits and interfaces', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true,
-        options: [
-            'traits' => ['Illuminate\\Database\\Eloquent\\SoftDeletes'],
-            'interfaces' => ['Illuminate\\Contracts\\Auth\\Access\\Authorizable'],
+        additionalTraits: [
+            'Illuminate\\Database\\Eloquent\\SoftDeletes',
+        ],
+        additionalInterfaces: [
+            'Illuminate\\Contracts\\Auth\\Access\\Authorizable',
         ]
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -235,9 +222,9 @@ test('it handles model traits and interfaces', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $modelPath = $this->tempPath . '/Post.php';
+    $modelPath = $this->tempPath.'/Post.php';
     expect(file_exists($modelPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -260,7 +247,7 @@ test('it handles model traits and interfaces', function () {
             ];
         }
         PHP;
-    
+
     expect(file_get_contents($modelPath))->toBe($expected);
 });
 
@@ -269,20 +256,18 @@ test('it handles custom casts and attributes', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'metadata', type: 'array'),
-            new Field(name: 'published', type: 'boolean', options: [
+            Field::from('metadata', 'array'),
+            Field::from('published', 'boolean', [
                 'default' => false,
             ]),
-            new Field(name: 'slug', type: 'string', options: [
-                'appended' => true,
-                'hidden' => false,
+            Field::from('slug', 'string', [
+                'unique' => true,
             ]),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -292,9 +277,9 @@ test('it handles custom casts and attributes', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $modelPath = $this->tempPath . '/Post.php';
+    $modelPath = $this->tempPath.'/Post.php';
     expect(file_exists($modelPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -335,7 +320,7 @@ test('it handles custom casts and attributes', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($modelPath))->toBe($expected);
 });
 
@@ -344,17 +329,13 @@ test('it handles circular relationships', function () {
     $dataPoint = new DataPoint(
         name: 'User',
         fields: collect([
-            new Field(name: 'name', type: 'string'),
+            Field::from('name', 'string'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::HAS_MANY,
-                related: 'Post',
-                options: new RelationshipOptions(
-                    foreignKey: 'user_id',
-                    localKey: 'id'
-                )
-            ),
+            Relationship::from(RelationType::HAS_MANY, 'Post', [
+                'foreignKey' => 'user_id',
+                'localKey' => 'id',
+            ]),
         ]),
         hasTimestamps: true
     );
@@ -362,22 +343,18 @@ test('it handles circular relationships', function () {
     $postDataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::BELONGS_TO,
-                related: 'User',
-                options: new RelationshipOptions(
-                    foreignKey: 'user_id',
-                    localKey: 'id'
-                )
-            ),
+            Relationship::from(RelationType::BELONGS_TO, 'User', [
+                'foreignKey' => 'user_id',
+                'localKey' => 'id',
+            ]),
         ]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint, $postDataPoint]));
+    $collection = new DataPointCollection($dataPoint, $postDataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -387,11 +364,12 @@ test('it handles circular relationships', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $userPath = $this->tempPath . '/User.php';
-    $postPath = $this->tempPath . '/Post.php';
-    expect(file_exists($userPath))->toBeTrue();
-    expect(file_exists($postPath))->toBeTrue();
-    
+    $userPath = $this->tempPath.'/User.php';
+    $postPath = $this->tempPath.'/Post.php';
+
+    expect(file_exists($userPath))->toBeTrue()
+        ->and(file_exists($postPath))->toBeTrue();
+
     $expectedUser = <<<'PHP'
         <?php
 
@@ -416,7 +394,7 @@ test('it handles circular relationships', function () {
             }
         }
         PHP;
-    
+
     $expectedPost = <<<'PHP'
         <?php
 
@@ -442,9 +420,9 @@ test('it handles circular relationships', function () {
             }
         }
         PHP;
-    
-    expect(file_get_contents($userPath))->toBe($expectedUser);
-    expect(file_get_contents($postPath))->toBe($expectedPost);
+
+    expect(file_get_contents($userPath))->toBe($expectedUser)
+        ->and(file_get_contents($postPath))->toBe($expectedPost);
 });
 
 function removeDirectory(string $path): void
@@ -459,7 +437,7 @@ function removeDirectory(string $path): void
                 continue;
             }
 
-            removeDirectory($path . DIRECTORY_SEPARATOR . $item);
+            removeDirectory($path.DIRECTORY_SEPARATOR.$item);
         }
         rmdir($path);
     } else {

@@ -6,13 +6,14 @@ use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\Relationship;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpFile;
-use Nette\PhpGenerator\PsrPrinter;
 
 class RequestGenerator implements Generator
 {
@@ -41,27 +42,30 @@ class RequestGenerator implements Generator
         get => 'request';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $result = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateStoreRequest($dataPoint, $options);
-            $this->generateUpdateRequest($dataPoint, $options);
+            $result[] = $this->generateStoreRequest($dataPoint, $options);
+            $result[] = $this->generateUpdateRequest($dataPoint, $options);
         }
+
+        return $result;
     }
 
-    private function generateStoreRequest(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateStoreRequest(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $className = "Store{$dataPoint->name}Request";
         $this->generateRequest($className, $dataPoint, $options, true);
     }
 
-    private function generateUpdateRequest(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateUpdateRequest(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $className = "Update{$dataPoint->name}Request";
         $this->generateRequest($className, $dataPoint, $options, false);
     }
 
-    private function generateRequest(string $className, DataPoint $dataPoint, TemplateOptions $options, bool $isStore): void
+    private function generateRequest(string $className, DataPoint $dataPoint, TemplateOptions $options, bool $isStore): GeneratedArtifact
     {
         $file = new PhpFile;
         $file->setStrictTypes();
@@ -76,13 +80,17 @@ class RequestGenerator implements Generator
         $this->addAuthorizeMethod($class);
         $this->addRulesMethod($class, $dataPoint, $isStore);
 
-        $printer = new PsrPrinter;
-        $content = (string) $file;
+        return new GeneratedArtifact(
+            $this->getFilePath($className, $options),
+            (string) $file
+        );
+    }
 
-        $path = app_path('Http/Requests/' . $className . '.php');
-
-        $this->ensureDirectoryExists(dirname($path));
-        file_put_contents($path, $content);
+    private function getFilePath(string $className, TemplateOptions $options): string
+    {
+        $namespace = str_replace('\\', '/', 'App/Http/Requests');
+        $basePath = $options->outputPath ?? base_path();
+        return $basePath . '/' . $namespace . '/' . $className . '.php';
     }
 
     private function addAuthorizeMethod(ClassType $class): void

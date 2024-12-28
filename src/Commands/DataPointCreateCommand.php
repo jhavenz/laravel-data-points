@@ -8,12 +8,16 @@ use DataPoints\LaravelDataPoints\Templates\BlogTemplate;
 use Illuminate\Console\Command;
 use Laravel\Prompts\SelectPrompt;
 
+use function array_combine;
+use function array_keys;
+
 class DataPointCreateCommand extends Command
 {
     protected $signature = 'datapoint:create {template?}';
+
     protected $description = 'Create a new data point from a template';
 
-    /** @var class-string<DataPointTemplate>[] $templates */
+    /** @var class-string<DataPointTemplate>[] */
     private array $templates = [
         'blog' => BlogTemplate::class,
     ];

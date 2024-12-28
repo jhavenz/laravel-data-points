@@ -13,7 +13,7 @@ enum ControllerType: string
 
     public function requiresRequests(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::API_RESOURCE, self::RESOURCE, self::INERTIA => true,
             default => false
         };
@@ -21,7 +21,7 @@ enum ControllerType: string
 
     public function requiresResources(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::API_RESOURCE => true,
             default => false
         };
@@ -29,7 +29,7 @@ enum ControllerType: string
 
     public function requiresViews(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::RESOURCE, self::INERTIA => true,
             default => false
         };

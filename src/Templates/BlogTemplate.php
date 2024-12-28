@@ -24,8 +24,10 @@ class BlogTemplate implements DataPointTemplate
 
     public DataPointCollection $dataPoints {
         get => new DataPointCollection(
-            $this->createPostDataPoint(),
-            $this->createCommentDataPoint()
+            ...[
+                $this->createPostDataPoint(),
+                $this->createCommentDataPoint()
+            ]
         );
     }
 

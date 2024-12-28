@@ -10,6 +10,7 @@ use Laravel\Prompts\ConfirmPrompt;
 use Laravel\Prompts\SelectPrompt;
 use Laravel\Prompts\TextPrompt;
 
+use function array_column;
 use function Laravel\Prompts\info;
 
 class DataPointForm
@@ -25,7 +26,7 @@ class DataPointForm
         $namespace = $this->promptForNamespace($defaults->namespace);
 
         // Show what will be generated and allow customization
-        info("This template will generate the following:");
+        info('This template will generate the following:');
 
         $controllerType = $this->confirmControllerType($defaults->controllerType);
         $withTests = $this->confirmTests($defaults->withTests);
@@ -40,14 +41,14 @@ class DataPointForm
         return new TextPrompt(
             label: 'What namespace should we use?',
             placeholder: 'Enter namespace or leave empty for default',
-            default: $default ?? "App\\DataPoints",
+            default: $default ?? 'App\\DataPoints',
             required: false,
         )->prompt();
     }
 
     private function confirmControllerType(ControllerType $default): ControllerType
     {
-        if (!$this->shouldCustomize("Would you like to customize the controller type?")) {
+        if (!$this->shouldCustomize('Would you like to customize the controller type?')) {
             return $default;
         }
 
@@ -61,7 +62,7 @@ class DataPointForm
 
     private function confirmTests(bool $default): bool
     {
-        if (!$this->shouldCustomize("Would you like to customize test generation?")) {
+        if (!$this->shouldCustomize('Would you like to customize test generation?')) {
             return $default;
         }
 
@@ -73,7 +74,7 @@ class DataPointForm
 
     private function confirmFactory(bool $default): bool
     {
-        if (!$this->shouldCustomize("Would you like to customize factory generation?")) {
+        if (!$this->shouldCustomize('Would you like to customize factory generation?')) {
             return $default;
         }
 
@@ -85,7 +86,7 @@ class DataPointForm
 
     private function confirmSeeder(bool $default): bool
     {
-        if (!$this->shouldCustomize("Would you like to customize seeder generation?")) {
+        if (!$this->shouldCustomize('Would you like to customize seeder generation?')) {
             return $default;
         }
 

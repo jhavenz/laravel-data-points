@@ -3,7 +3,6 @@
 namespace DataPoints\LaravelDataPoints;
 
 use DataPoints\LaravelDataPoints\Commands\DataPointMakeCommand;
-use DataPoints\LaravelDataPoints\Commands\LaravelDataPointsCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 

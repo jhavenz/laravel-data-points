@@ -5,11 +5,13 @@ namespace DataPoints\LaravelDataPoints\Generators;
 use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
+use DataPoints\LaravelDataPoints\Enums\RelationType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpFile;
-use Nette\PhpGenerator\PsrPrinter;
 
 class SeederGenerator implements Generator
 {
@@ -17,16 +19,19 @@ class SeederGenerator implements Generator
         get => 'seeder';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $result = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateSeeder($dataPoint, $options);
+            $result[] = $this->generateSeeder($dataPoint, $options);
+            $result[] = $this->updateDatabaseSeeder($result);
         }
 
-        $this->updateDatabaseSeeder($dataPoints, $options);
+
+        return $result;
     }
 
-    private function generateSeeder(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateSeeder(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $className = $dataPoint->name . 'Seeder';
 
@@ -34,6 +39,7 @@ class SeederGenerator implements Generator
         $file->setStrictTypes();
 
         $namespace = $file->addNamespace('Database\\Seeders');
+
         $this->addImports($namespace, $dataPoint, $options);
 
         $class = $namespace->addClass($className)
@@ -41,13 +47,10 @@ class SeederGenerator implements Generator
 
         $this->addRunMethod($class, $dataPoint);
 
-        $printer = new PsrPrinter;
-        $content = (string) $file;
-
-        $path = database_path('seeders/' . $className . '.php');
-
-        $this->ensureDirectoryExists(dirname($path));
-        file_put_contents($path, $content);
+        return new GeneratedArtifact(
+            $this->getFilePath($dataPoint, $options),
+            (string) $file
+        );
     }
 
     private function addImports($namespace, DataPoint $dataPoint, TemplateOptions $options): void
@@ -90,15 +93,24 @@ class SeederGenerator implements Generator
         $method->setBody($body);
     }
 
-    private function updateDatabaseSeeder(DataPointCollection $dataPoints, TemplateOptions $options): void
+    /**
+     * @param  Collection<int, GeneratedArtifact>  $dataPoints
+     * @return GeneratedArtifact
+     */
+    private function updateDatabaseSeeder(Collection $dataPoints): GeneratedArtifact
     {
         $file = new PhpFile;
         $file->setStrictTypes();
+        $path = database_path('seeders/DatabaseSeeder.php');
 
         $namespace = $file->addNamespace('Database\\Seeders');
         $namespace->addUse('Illuminate\\Database\\Seeder');
 
         foreach ($dataPoints as $dataPoint) {
+            if ($dataPoint->path === $path) {
+                continue;
+            }
+
             $namespace->addUse('Database\\Seeders\\' . $dataPoint->name . 'Seeder');
         }
 
@@ -128,12 +140,17 @@ class SeederGenerator implements Generator
 
         $method->setBody($body);
 
-        $path = database_path('seeders/DatabaseSeeder.php');
-        $this->ensureDirectoryExists(dirname($path));
-        file_put_contents($path, (string) $file);
+        return new GeneratedArtifact(
+            $path,
+            (string) $file
+        );
     }
 
-    private function orderDataPointsByDependencies(DataPointCollection $dataPoints): array
+    /**
+     * @param  Collection<int, GeneratedArtifact>  $dataPoints
+     * @return array
+     */
+    private function orderDataPointsByDependencies(Collection $dataPoints): array
     {
         $ordered = [];
         $unordered = $dataPoints->toArray();
@@ -181,6 +198,18 @@ class SeederGenerator implements Generator
     private function getNamespace(DataPoint $dataPoint, ?TemplateOptions $options = null): string
     {
         return $options?->namespace ?? 'App\\Models';
+    }
+
+    private function getFilePath(DataPoint $dataPoint, TemplateOptions $options): string
+    {
+        $namespace = str_replace('\\', '/', $this->getNamespace($dataPoint, $options));
+        $basePath = $options->outputPath ?? base_path();
+        return $basePath . '/' . $namespace . '/' . $this->getClassName($dataPoint) . '.php';
+    }
+
+    private function getClassName(DataPoint $dataPoint): string
+    {
+        return $dataPoint->name . 'Seeder';
     }
 
     private function ensureDirectoryExists(string $directory): void

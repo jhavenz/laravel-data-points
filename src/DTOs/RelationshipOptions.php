@@ -2,6 +2,8 @@
 
 namespace DataPoints\LaravelDataPoints\DTOs;
 
+use function array_filter;
+
 readonly class RelationshipOptions
 {
     public function __construct(
@@ -31,6 +33,6 @@ readonly class RelationshipOptions
             'table' => $this->table,
             'morphName' => $this->morphName,
             'withTimestamps' => $this->withTimestamps,
-        ], fn($value) => $value !== null && $value !== false);
+        ], fn ($value) => $value !== null && $value !== false);
     }
 }

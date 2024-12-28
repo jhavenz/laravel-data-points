@@ -25,6 +25,9 @@ class TemplateOptions
         public array $additionalFiles = [] {
             get => $this->additionalFiles;
         },
+        public ?string $outputPath = null {
+            get => $this->outputPath;
+        },
     ) {}
 
     public bool $shouldGenerateController {
@@ -53,7 +56,8 @@ class TemplateOptions
             withSeeder: $options['withSeeder'] ?? true,
             withFactory: $options['withFactory'] ?? true,
             namespace: $options['namespace'] ?? null,
-            additionalFiles: $options['additionalFiles'] ?? []
+            additionalFiles: $options['additionalFiles'] ?? [],
+            outputPath: $options['outputPath'] ?? null,
         );
     }
 }

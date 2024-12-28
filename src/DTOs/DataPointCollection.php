@@ -6,7 +6,12 @@ use DataPoints\LaravelDataPoints\DataPoint;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\ForwardsCalls;
 
-readonly class DataPointCollection
+use function forward_static_call_array;
+
+/**
+ * @mixin Collection<int, DataPoint>
+ */
+class DataPointCollection
 {
     use ForwardsCalls;
 

@@ -6,12 +6,13 @@ use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpFile;
-use Nette\PhpGenerator\PsrPrinter;
 
 class FactoryGenerator implements Generator
 {
@@ -41,14 +42,17 @@ class FactoryGenerator implements Generator
         get => 'factory';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $results = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateFactory($dataPoint, $options);
+            $results[] = $this->generateFactory($dataPoint, $options);
         }
+
+        return $results;
     }
 
-    private function generateFactory(DataPoint $dataPoint, TemplateOptions $options): void
+    private function generateFactory(DataPoint $dataPoint, TemplateOptions $options): GeneratedArtifact
     {
         $className = $dataPoint->name . 'Factory';
 
@@ -66,13 +70,17 @@ class FactoryGenerator implements Generator
         $this->addModelMethod($class, $dataPoint, $options);
         $this->addDefinitionMethod($class, $dataPoint);
 
-        $printer = new PsrPrinter;
-        $content = (string) $file;
+        return new GeneratedArtifact(
+            $this->getFilePath($dataPoint, $options),
+            (string) $file
+        );
+    }
 
-        $path = database_path('factories/' . $className . '.php');
-
-        $this->ensureDirectoryExists(dirname($path));
-        file_put_contents($path, $content);
+    private function getFilePath(DataPoint $dataPoint, TemplateOptions $options): string
+    {
+        $namespace = str_replace('\\', '/', $this->getNamespace($dataPoint, $options));
+        $basePath = $options->outputPath ?? base_path();
+        return $basePath . '/' . $namespace . '/' . $dataPoint->name . 'Factory.php';
     }
 
     private function addModelMethod(ClassType $class, DataPoint $dataPoint, TemplateOptions $options): void

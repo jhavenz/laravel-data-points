@@ -2,6 +2,8 @@
 
 namespace DataPoints\LaravelDataPoints\DTOs;
 
+use function array_filter;
+
 readonly class FieldOptions
 {
     public function __construct(
@@ -31,6 +33,6 @@ readonly class FieldOptions
             'length' => $this->length,
             'default' => $this->default,
             'comment' => $this->comment,
-        ], fn($value) => $value !== null && $value !== false);
+        ], fn ($value) => $value !== null && $value !== false);
     }
 }

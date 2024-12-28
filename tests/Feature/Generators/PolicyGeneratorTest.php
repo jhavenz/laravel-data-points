@@ -3,15 +3,13 @@
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
-use DataPoints\LaravelDataPoints\DTOs\RelationshipOptions;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
-use DataPoints\LaravelDataPoints\Enums\RelationType;
 use DataPoints\LaravelDataPoints\Generators\PolicyGenerator;
 
 beforeEach(function () {
     $this->generator = new PolicyGenerator();
-    $this->tempPath = sys_get_temp_dir() . '/laravel-data-points-test';
-    
+    $this->tempPath = sys_get_temp_dir().'/laravel-data-points-test';
+
     if (!is_dir($this->tempPath)) {
         mkdir($this->tempPath, 0755, true);
     }
@@ -26,13 +24,12 @@ test('it generates basic policy', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -42,9 +39,9 @@ test('it generates basic policy', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $policyPath = $this->tempPath . '/PostPolicy.php';
+    $policyPath = $this->tempPath.'/PostPolicy.php';
     expect(file_exists($policyPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -94,7 +91,7 @@ test('it generates basic policy', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($policyPath))->toBe($expected);
 });
 
@@ -103,13 +100,12 @@ test('it generates policy with custom namespace', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'Domain\\Blog\\Models',
         outputPath: $this->tempPath
@@ -119,9 +115,9 @@ test('it generates policy with custom namespace', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $policyPath = $this->tempPath . '/PostPolicy.php';
+    $policyPath = $this->tempPath.'/PostPolicy.php';
     expect(file_exists($policyPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -171,26 +167,25 @@ test('it generates policy with custom namespace', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($policyPath))->toBe($expected);
 });
 
 test('it updates auth service provider', function () {
     // Arrange
-    $dataPoints = new DataPointCollection(collect([
-        new DataPoint(
-            name: 'Post',
-            fields: collect([new Field(name: 'title', type: 'string')]),
-            relationships: collect([]),
-            hasTimestamps: true
-        ),
-        new DataPoint(
-            name: 'Comment',
-            fields: collect([new Field(name: 'body', type: 'text')]),
-            relationships: collect([]),
-            hasTimestamps: true
-        ),
-    ]));
+    $postDataPoint = new DataPoint(
+        name: 'Post',
+        fields: collect([Field::from('title', 'string')]),
+        hasTimestamps: true
+    );
+
+    $commentDataPoint = new DataPoint(
+        name: 'Comment',
+        fields: collect([Field::from('body', 'text')]),
+        hasTimestamps: true
+    );
+
+    $dataPoints = new DataPointCollection($postDataPoint, $commentDataPoint);
 
     $options = new TemplateOptions(
         namespace: 'App\\Models',
@@ -201,9 +196,9 @@ test('it updates auth service provider', function () {
     $this->generator->generate($dataPoints, $options);
 
     // Assert
-    $providerPath = $this->tempPath . '/AuthServiceProvider.php';
+    $providerPath = $this->tempPath.'/AuthServiceProvider.php';
     expect(file_exists($providerPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -228,7 +223,7 @@ test('it updates auth service provider', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($providerPath))->toBe($expected);
 });
 
@@ -244,7 +239,7 @@ function removeDirectory(string $path): void
                 continue;
             }
 
-            removeDirectory($path . DIRECTORY_SEPARATOR . $item);
+            removeDirectory($path.DIRECTORY_SEPARATOR.$item);
         }
         rmdir($path);
     } else {

@@ -3,15 +3,15 @@
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
-use DataPoints\LaravelDataPoints\DTOs\RelationshipOptions;
+use DataPoints\LaravelDataPoints\DTOs\Relationship;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
 use DataPoints\LaravelDataPoints\Generators\ResourceGenerator;
 
 beforeEach(function () {
     $this->generator = new ResourceGenerator();
-    $this->tempPath = sys_get_temp_dir() . '/laravel-data-points-test';
-    
+    $this->tempPath = sys_get_temp_dir().'/laravel-data-points-test';
+
     if (!is_dir($this->tempPath)) {
         mkdir($this->tempPath, 0755, true);
     }
@@ -26,14 +26,13 @@ test('it generates basic resource', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
-            new Field(name: 'content', type: 'text'),
+            Field::from('title', 'string'),
+            Field::from('content', 'text'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -43,9 +42,9 @@ test('it generates basic resource', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $resourcePath = $this->tempPath . '/PostResource.php';
+    $resourcePath = $this->tempPath.'/PostResource.php';
     expect(file_exists($resourcePath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -67,7 +66,7 @@ test('it generates basic resource', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($resourcePath))->toBe($expected);
 });
 
@@ -76,30 +75,22 @@ test('it generates resource with relationships', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
         relationships: collect([
-            new Relationship(
-                type: RelationType::BELONGS_TO,
-                related: 'User',
-                options: new RelationshipOptions(
-                    foreignKey: 'user_id',
-                    localKey: 'id'
-                )
-            ),
-            new Relationship(
-                type: RelationType::HAS_MANY,
-                related: 'Comment',
-                options: new RelationshipOptions(
-                    foreignKey: 'post_id',
-                    localKey: 'id'
-                )
-            ),
+            Relationship::from(RelationType::BELONGS_TO, 'User', [
+                'foreignKey' => 'user_id',
+                'localKey' => 'id',
+            ]),
+            Relationship::from(RelationType::HAS_MANY, 'Comment', [
+                'foreignKey' => 'post_id',
+                'localKey' => 'id',
+            ]),
         ]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -109,9 +100,9 @@ test('it generates resource with relationships', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $resourcePath = $this->tempPath . '/PostResource.php';
+    $resourcePath = $this->tempPath.'/PostResource.php';
     expect(file_exists($resourcePath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -136,7 +127,7 @@ test('it generates resource with relationships', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($resourcePath))->toBe($expected);
 });
 
@@ -145,13 +136,12 @@ test('it generates resource collection', function () {
     $dataPoint = new DataPoint(
         name: 'Post',
         fields: collect([
-            new Field(name: 'title', type: 'string'),
+            Field::from('title', 'string'),
         ]),
-        relationships: collect([]),
         hasTimestamps: true
     );
 
-    $collection = new DataPointCollection(collect([$dataPoint]));
+    $collection = new DataPointCollection($dataPoint);
     $options = new TemplateOptions(
         namespace: 'App\\Models',
         outputPath: $this->tempPath
@@ -161,9 +151,9 @@ test('it generates resource collection', function () {
     $this->generator->generate($collection, $options);
 
     // Assert
-    $collectionPath = $this->tempPath . '/PostCollection.php';
+    $collectionPath = $this->tempPath.'/PostCollection.php';
     expect(file_exists($collectionPath))->toBeTrue();
-    
+
     $expected = <<<'PHP'
         <?php
 
@@ -184,7 +174,7 @@ test('it generates resource collection', function () {
             }
         }
         PHP;
-    
+
     expect(file_get_contents($collectionPath))->toBe($expected);
 });
 
@@ -200,7 +190,7 @@ function removeDirectory(string $path): void
                 continue;
             }
 
-            removeDirectory($path . DIRECTORY_SEPARATOR . $item);
+            removeDirectory($path.DIRECTORY_SEPARATOR.$item);
         }
         rmdir($path);
     } else {

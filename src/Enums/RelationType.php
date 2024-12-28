@@ -16,7 +16,7 @@ enum RelationType: string
 
     public function isPolymorphic(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::MORPH_ONE, self::MORPH_MANY, self::MORPH_TO,
             self::MORPH_TO_MANY, self::MORPH_BY_MANY => true,
             default => false
@@ -25,7 +25,7 @@ enum RelationType: string
 
     public function requiresPivotTable(): bool
     {
-        return match($this) {
+        return match ($this) {
             self::BELONGS_TO_MANY, self::MORPH_TO_MANY,
             self::MORPH_BY_MANY => true,
             default => false

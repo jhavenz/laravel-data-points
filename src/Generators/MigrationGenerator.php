@@ -6,27 +6,32 @@ use DataPoints\LaravelDataPoints\Contracts\Generator;
 use DataPoints\LaravelDataPoints\DataPoint;
 use DataPoints\LaravelDataPoints\DTOs\DataPointCollection;
 use DataPoints\LaravelDataPoints\DTOs\Field;
+use DataPoints\LaravelDataPoints\DTOs\GeneratedArtifact;
 use DataPoints\LaravelDataPoints\DTOs\TemplateOptions;
 use DataPoints\LaravelDataPoints\Enums\RelationType;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\PhpNamespace;
 use Nette\PhpGenerator\PsrPrinter;
 
-readonly class MigrationGenerator implements Generator
+class MigrationGenerator implements Generator
 {
     public string $type {
         get => 'migration';
     }
 
-    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): void
+    public function generate(DataPointCollection $dataPoints, TemplateOptions $options): Collection
     {
+        $results = collect();
         foreach ($dataPoints as $dataPoint) {
-            $this->generateMigration($dataPoint);
+            $results[] = $this->generateMigration($dataPoint);
         }
+
+        return $results;
     }
 
-    private function generateMigration(DataPoint $dataPoint): void
+    private function generateMigration(DataPoint $dataPoint): GeneratedArtifact
     {
         $className = 'Create' . Str::studly($dataPoint->tableName) . 'Table';
 
@@ -48,10 +53,10 @@ readonly class MigrationGenerator implements Generator
         $filename = date('Y_m_d_His') . '_create_' .
             $dataPoint->tableName . '_table.php';
 
-        $path = database_path('migrations/' . $filename);
-
-        $this->ensureDirectoryExists(dirname($path));
-        file_put_contents($path, $content);
+        return new GeneratedArtifact(
+            database_path('migrations/' . $filename),
+            $content
+        );
     }
 
     private function addUpMethod(ClassType $class, DataPoint $dataPoint): void
